@@ -1,51 +1,87 @@
 package com.proyecto.tgo.viewmodel
 
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.proyecto.tgo.model.EstadoServicio
 import com.proyecto.tgo.model.MenuSeccion
 import com.proyecto.tgo.model.ServicioTuristico
 import com.proyecto.tgo.repository.ServicioRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
-class ServicioViewModel : ViewModel() {
+sealed interface ServiciosState {
+    data object Loading : ServiciosState
+    data object Empty : ServiciosState
+    data class Success(val lista: List<ServicioTuristico>) : ServiciosState
+    data class Error(val mensaje: String) : ServiciosState
+}
 
-    private val repository = ServicioRepository()
+class ServicioViewModel(
+    private val repository: ServicioRepository = ServicioRepository()
+) : ViewModel() {
 
-    private val _serviciosState = mutableStateOf<List<ServicioTuristico>>(emptyList())
-    val serviciosState: State<List<ServicioTuristico>> = _serviciosState
+    private val _seccionActual = MutableStateFlow(MenuSeccion.SERVICIOS)
+    val seccionActual: StateFlow<MenuSeccion> = _seccionActual.asStateFlow()
 
-    // Estado observable de la sección activa
-    private val _seccionActual = mutableStateOf(MenuSeccion.SERVICIOS)
-    val seccionActual: State<MenuSeccion> = _seccionActual
+    private val _serviciosState = MutableStateFlow<ServiciosState>(ServiciosState.Loading)
+    val serviciosState: StateFlow<ServiciosState> = _serviciosState.asStateFlow()
 
-    private val _mensajeSnackbar = mutableStateOf<String?>(null)
-    val mensajeSnackbar: State<String?> = _mensajeSnackbar
+    private val _diasBloqueados = MutableStateFlow<List<LocalDate>>(emptyList())
+    val diasBloqueados: StateFlow<List<LocalDate>> = _diasBloqueados.asStateFlow()
+
+    private val _mensajeUsuario = MutableStateFlow<String?>(null)
+    val mensajeUsuario: StateFlow<String?> = _mensajeUsuario.asStateFlow()
 
     init {
         cargarServicios()
     }
 
-    fun cargarServicios() {
-        _serviciosState.value = repository.obtenerServicios()
-    }
-
-    fun seleccionarSeccion(seccion: MenuSeccion) {
+    fun cambiarSeccion(seccion: MenuSeccion) {
         _seccionActual.value = seccion
-        _mensajeSnackbar.value = "Navegando a: ${seccion.titulo}"
     }
 
-    fun responderAsignacion(idServicio: String) {
-        if (repository.confirmarServicio(idServicio)) {
-            cargarServicios()
-            _mensajeSnackbar.value = "Servicio $idServicio confirmado con éxito"
+    fun cargarServicios() {
+        viewModelScope.launch {
+            _serviciosState.value = ServiciosState.Loading
+            try {
+                val lista = repository.obtenerServicios()
+                _serviciosState.value = if (lista.isEmpty()) ServiciosState.Empty else ServiciosState.Success(lista)
+            } catch (e: Exception) {
+                _serviciosState.value = ServiciosState.Error("Error al obtener servicios: ${e.localizedMessage}")
+            }
         }
     }
 
-    fun limpiarMensajeSnackbar() {
-        _mensajeSnackbar.value = null
+    fun actualizarEstadoServicio(id: String, estado: EstadoServicio) {
+        viewModelScope.launch {
+            repository.actualizarEstado(id, estado)
+            cargarServicios()
+        }
     }
 
-    fun solicitarBloqueoFecha(fecha: String) {
-        _mensajeSnackbar.value = "Solicitud de bloqueo enviada para la fecha: $fecha (sujeta a validación de 7 días)."
+    fun solicitarBloqueoFecha(fecha: LocalDate) {
+        val hoy = LocalDate.now()
+        val diasDiferencia = ChronoUnit.DAYS.between(hoy, fecha)
+
+        if (fecha.isBefore(hoy)) {
+            _mensajeUsuario.value = "No es posible bloquear fechas pasadas"
+            return
+        }
+
+        if (diasDiferencia < 7) {
+            _mensajeUsuario.value = "Las solicitudes deben realizarse con al menos 7 días de anticipación"
+            return
+        }
+
+        _diasBloqueados.value = (_diasBloqueados.value + fecha).distinct()
+        _mensajeUsuario.value = "Fecha $fecha bloqueada exitosamente"
+    }
+
+    fun limpiarMensaje() {
+        _mensajeUsuario.value = null
     }
 }

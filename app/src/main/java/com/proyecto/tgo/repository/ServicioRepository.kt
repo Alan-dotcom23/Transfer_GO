@@ -1,46 +1,44 @@
 package com.proyecto.tgo.repository
 
+import com.proyecto.tgo.model.EstadoServicio
 import com.proyecto.tgo.model.ServicioTuristico
+import java.time.LocalDate
+import java.time.LocalTime
 
-class ServicioRepository {
+open class ServicioRepository {
 
-    private val listaServicios = mutableListOf(
+    private val serviciosFake = mutableListOf(
         ServicioTuristico(
-            id = "TRF-101",
-            tipoServicio = "Transfer Aeropuerto -> Hotel Icon",
-            fecha = "2026-09-28",
-            horaPickup = "08:30 AM",
-            puntoPickup = "Aeropuerto SCL - Salida Internacional",
-            puntoDropoff = "Hotel Icon, Las Condes",
-            pasajerosCount = 4,
+            id = "SERV-001",
+            clienteNombre = "Hotel Muelle de las Almas",
+            fecha = LocalDate.now().plusDays(2),
+            horaPickup = LocalTime.of(8, 30),
+            puntoPickup = "Centro de Castro",
+            puntoDropoff = "Cucao",
             tarifaCLP = 45000,
-            estadoRespuesta = "PENDIENTE",
-            estadoEjecucion = "POR_INICIAR"
+            observacion = "Pasajeros requieren silla de bebé",
+            estado = EstadoServicio.PENDIENTE
         ),
         ServicioTuristico(
-            id = "TOUR-202",
-            tipoServicio = "Tour Half Day - Viña del Mar",
-            fecha = "2026-09-29",
-            horaPickup = "09:00 AM",
-            puntoPickup = "Hotel Mandarín Oriental",
-            puntoDropoff = "Hotel Mandarín Oriental",
-            pasajerosCount = 2,
-            tarifaCLP = 75000,
-            estadoRespuesta = "CONFIRMADO",
-            estadoEjecucion = "POR_INICIAR"
+            id = "SERV-002",
+            clienteNombre = "Tour Saltos del Petrohué",
+            fecha = LocalDate.now().plusDays(5),
+            horaPickup = LocalTime.of(9, 0),
+            puntoPickup = "Puerto Varas",
+            puntoDropoff = "Volcán Osorno",
+            tarifaCLP = 60000,
+            estado = EstadoServicio.CONFIRMADO
         )
     )
 
-    fun obtenerServicios(): List<ServicioTuristico> {
-        return listaServicios.toList()
+    open suspend fun obtenerServicios(): List<ServicioTuristico> {
+        return serviciosFake.toList()
     }
 
-    fun confirmarServicio(idServicio: String): Boolean {
-        val index = listaServicios.indexOfFirst { it.id == idServicio }
+    open suspend fun actualizarEstado(id: String, nuevoEstado: EstadoServicio) {
+        val index = serviciosFake.indexOfFirst { it.id == id }
         if (index != -1) {
-            listaServicios[index] = listaServicios[index].copy(estadoRespuesta = "CONFIRMADO")
-            return true
+            serviciosFake[index] = serviciosFake[index].copy(estado = nuevoEstado)
         }
-        return false
     }
 }

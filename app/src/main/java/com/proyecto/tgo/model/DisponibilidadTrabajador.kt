@@ -1,8 +1,8 @@
 package com.proyecto.tgo.model
 
+import java.time.LocalDate
+
 data class DisponibilidadTrabajador(
-    val idTrabajador: String,
-    val nombreTrabajador: String,
-    val rol: String,
-    val diasBloqueados: List<String> = emptyList()
+    val trabajadorId: String,
+    val diasBloqueados: List<LocalDate> = emptyList()
 )

@@ -1,25 +1,24 @@
 package com.proyecto.tgo.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
-private val LightColorScheme = lightColorScheme(
-    primary = TgoPrimary,
-    onPrimary = TgoOnPrimary,
-    secondary = TgoSecondary,
-    onSecondary = TgoOnSecondary,
-    background = TgoBackground,
-    onBackground = TgoOnBackground,
-    surface = TgoSurface,
-    onSurface = TgoOnSurface,
-    error = TgoError
-)
+private val DarkColorScheme = darkColorScheme()
+private val LightColorScheme = lightColorScheme()
 
 @Composable
-fun TGOTheme(content: @Composable () -> Unit) {
+fun TransferGOTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit
+) {
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+
     MaterialTheme(
-        colorScheme = LightColorScheme,
+        colorScheme = colorScheme,
+        typography = Typography,
         content = content
     )
 }

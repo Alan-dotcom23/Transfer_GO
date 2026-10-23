@@ -2,257 +2,285 @@ package com.proyecto.tgo.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Badge
-import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.SupervisorAccount
-import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
-// Modelo para los perfiles de ejemplo
-data class PerfilUsuarioEjemplo(
-    val nombre: String,
-    val rol: String,
-    val agencia: String,
-    val rut: String,
-    val telefono: String,
-    val calificacion: String,
-    val detalleExtraTitulo: String,
-    val detalleExtraValor: String,
-    val iconoRol: ImageVector
-)
+import androidx.compose.ui.unit.sp
 
 @Composable
-fun PerfilScreen() {
-    // Lista de usuarios de ejemplo
-    val listaUsuarios = remember {
-        listOf(
-            PerfilUsuarioEjemplo(
-                nombre = "Alan Mancilla",
-                rol = "Driver / Conductor Senior",
-                agencia = "Southbound Tours",
-                rut = "19.876.543-2",
-                telefono = "+56 9 1234 5678",
-                calificacion = "4.9 ⭐ (84 servicios)",
-                detalleExtraTitulo = "Licencia de Conducir",
-                detalleExtraValor = "Clase A2 / A3 Profesional",
-                iconoRol = Icons.Default.DirectionsCar
-            ),
-            PerfilUsuarioEjemplo(
-                nombre = "Luis Figueroa",
-                rol = "Guía Turístico Bilingüe",
-                agencia = "Turismo Patagonia Express",
-                rut = "18.654.321-K",
-                telefono = "+56 9 8765 4321",
-                calificacion = "5.0 ⭐ (112 tours)",
-                detalleExtraTitulo = "Idiomas Certificados",
-                detalleExtraValor = "Español, Inglés (C1), Portugués",
-                iconoRol = Icons.Default.Translate
-            ),
-            PerfilUsuarioEjemplo(
-                nombre = "Carolina Reyes",
-                rol = "Coordinadora de Terreno",
-                agencia = "TGO Operaciones Central",
-                rut = "17.432.109-8",
-                telefono = "+56 9 5555 9988",
-                calificacion = "4.8 ⭐ (Supervisora)",
-                detalleExtraTitulo = "Zona de Asignación",
-                detalleExtraValor = "Región Metropolitana / Valparaíso",
-                iconoRol = Icons.Default.SupervisorAccount
-            )
-        )
-    }
+fun PerfilScreen(
+    modifier: Modifier = Modifier
+) {
+    var isEditing by remember { mutableStateOf(false) }
 
-    var usuarioSeleccionadoIndex by remember { mutableStateOf(0) }
-    val usuarioActual = listaUsuarios[usuarioSeleccionadoIndex]
+    // Estados con datos de ejemplo del perfil
+    var nombre by remember { mutableStateOf("Juan Pérez") }
+    var rut by remember { mutableStateOf("12.345.678-9") }
+    var telefono by remember { mutableStateOf("+56 9 1234 5678") }
+    var email by remember { mutableStateOf("juan.perez@transfergo.cl") }
+    var patenteVehiculo by remember { mutableStateOf("KXYZ-89") }
+    var notificacionesActivas by remember { mutableStateOf(true) }
 
-    LazyColumn(
-        modifier = Modifier
+    Column(
+        modifier = modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Selector de Perfiles de Ejemplo
-        item {
-            Text(
-                text = "Seleccionar Perfil de Ejemplo",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            SingleChoiceSegmentedButtonRow(
-                modifier = Modifier.fillMaxWidth()
+        // Cabecera con Avatar e Información Principal
+        ProfileHeader(
+            nombre = nombre,
+            rol = "Conductor / Transportista"
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Tarjeta de Datos Personales
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                listaUsuarios.forEachIndexed { index, usuario ->
-                    SegmentedButton(
-                        selected = usuarioSeleccionadoIndex == index,
-                        onClick = { usuarioSeleccionadoIndex = index },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = listaUsuarios.size)
-                    ) {
-                        Text(
-                            text = usuario.nombre.split(" ")[0],
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
-                }
-            }
-        }
-
-        // Tarjeta Principal con Avatar y Nombre
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Avatar",
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = usuarioActual.nombre,
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    AssistChip(
-                        onClick = { },
-                        label = { Text(usuarioActual.rol) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = usuarioActual.iconoRol,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            labelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    )
-                }
-            }
-        }
-
-        // Tarjeta con Información Detallada
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Ficha del Trabajador",
+                        text = "Información Personal",
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
+                        fontWeight = FontWeight.Bold
                     )
+                    IconButton(onClick = { isEditing = !isEditing }) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Editar",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
 
-                    HorizontalDivider()
+                HorizontalDivider()
 
-                    PerfilInfoItem(
-                        icon = Icons.Default.Business,
-                        titulo = "Agencia / Operador",
-                        valor = usuarioActual.agencia
+                if (isEditing) {
+                    OutlinedTextField(
+                        value = nombre,
+                        onValueChange = { nombre = it },
+                        label = { Text("Nombre Completo") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
                     )
-
-                    PerfilInfoItem(
-                        icon = Icons.Default.Badge,
-                        titulo = "RUT / ID Identificación",
-                        valor = usuarioActual.rut
+                    OutlinedTextField(
+                        value = telefono,
+                        onValueChange = { telefono = it },
+                        label = { Text("Teléfono") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
                     )
-
-                    PerfilInfoItem(
-                        icon = Icons.Default.Phone,
-                        titulo = "Contacto Directo",
-                        valor = usuarioActual.telefono
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        label = { Text("Correo Electrónico") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
                     )
+                    Button(
+                        onClick = { isEditing = false },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("Guardar Cambios")
+                    }
+                } else {
+                    ProfileItem(icon = Icons.Default.Person, title = "RUT / ID", value = rut)
+                    ProfileItem(icon = Icons.Default.Phone, title = "Teléfono", value = telefono)
+                    ProfileItem(icon = Icons.Default.Email, title = "Correo", value = email)
+                    ProfileItem(icon = Icons.Default.DirectionsCar, title = "Vehículo / Patente", value = patenteVehiculo)
+                }
+            }
+        }
 
-                    PerfilInfoItem(
-                        icon = usuarioActual.iconoRol,
-                        titulo = usuarioActual.detalleExtraTitulo,
-                        valor = usuarioActual.detalleExtraValor
-                    )
+        Spacer(modifier = Modifier.height(16.dp))
 
-                    PerfilInfoItem(
-                        icon = Icons.Default.Star,
-                        titulo = "Desempeño / Valoración",
-                        valor = usuarioActual.calificacion
+        // Tarjeta de Ajustes y Preferencias
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Ajustes",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                HorizontalDivider()
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(Icons.Default.Notifications, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Text(text = "Notificaciones de servicios", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Switch(
+                        checked = notificacionesActivas,
+                        onCheckedChange = { notificacionesActivas = it }
                     )
                 }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Text(text = "Cambiar Contraseña", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    TextButton(onClick = { /* Lógica de contraseña */ }) {
+                        Text("Editar")
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Botón de Cerrar Sesión
+        OutlinedButton(
+            onClick = { /* Lógica para cerrar sesión */ },
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.error)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.ExitToApp, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Cerrar Sesión")
+        }
+    }
+}
+
+@Composable
+private fun ProfileHeader(
+    nombre: String,
+    rol: String
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(96.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = "Foto de Perfil",
+                modifier = Modifier.size(56.dp),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = nombre,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Surface(
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Shield,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = rol,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
             }
         }
     }
 }
 
 @Composable
-fun PerfilInfoItem(
+private fun ProfileItem(
     icon: ImageVector,
-    titulo: String,
-    valor: String
+    title: String,
+    value: String
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(20.dp)
         )
-        Spacer(modifier = Modifier.width(16.dp))
         Column {
             Text(
-                text = titulo,
-                style = MaterialTheme.typography.labelMedium,
+                text = title,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = valor,
+                text = value,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                fontWeight = FontWeight.Medium
             )
         }
     }

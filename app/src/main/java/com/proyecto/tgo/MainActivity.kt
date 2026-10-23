@@ -3,26 +3,16 @@ package com.proyecto.tgo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
 import com.proyecto.tgo.ui.screens.MainScreen
-import com.proyecto.tgo.ui.theme.TGOTheme
+import com.proyecto.tgo.ui.theme.TransferGOTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            TGOTheme {
+            TransferGOTheme {
                 MainScreen()
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun MainScreenPreview() {
-    TGOTheme {
-        MainScreen()
     }
 }
