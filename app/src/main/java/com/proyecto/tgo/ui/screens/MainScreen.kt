@@ -74,8 +74,8 @@ fun MainScreen(
         ) { paddingValues ->
             Box(modifier = Modifier.padding(paddingValues)) {
                 when (seccionActual) {
-                    MenuSeccion.SERVICIOS -> ServicioListScreen(viewModel = viewModel)
-                    MenuSeccion.DISPONIBILIDAD -> DisponibilidadScreen(viewModel = viewModel)
+                    MenuSeccion.SERVICIOS -> ServicioListScreen()
+                    MenuSeccion.DISPONIBILIDAD -> DisponibilidadScreen()
                     MenuSeccion.PERFIL -> PerfilScreen()
                 }
             }

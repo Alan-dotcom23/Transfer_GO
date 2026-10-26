@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.proyecto.tgo.viewmodel.ServicioViewModel
+import com.proyecto.tgo.ui.components.ClimaCard
 
 data class ServicioItem(
     val id: String,
@@ -74,6 +75,7 @@ fun ServicioListScreen(
             .fillMaxSize()
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
+        ClimaCard()
         // 1. Buscador rápido
         OutlinedTextField(
             value = queryBusqueda,
