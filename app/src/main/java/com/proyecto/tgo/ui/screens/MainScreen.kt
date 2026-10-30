@@ -49,6 +49,8 @@ fun MainScreen(
 
     ModalNavigationDrawer(
         drawerState = drawerState,
+        // En el mapa se desactiva el gesto lateral para no chocar con el desplazamiento del mapa
+        gesturesEnabled = seccionActual != MenuSeccion.MAPA,
         drawerContent = {
             AppDrawer(
                 seccionSeleccionada = seccionActual,
@@ -75,6 +77,7 @@ fun MainScreen(
             Box(modifier = Modifier.padding(paddingValues)) {
                 when (seccionActual) {
                     MenuSeccion.SERVICIOS -> ServicioListScreen()
+                    MenuSeccion.MAPA -> MapaScreen()
                     MenuSeccion.DISPONIBILIDAD -> DisponibilidadScreen()
                     MenuSeccion.PERFIL -> PerfilScreen()
                 }

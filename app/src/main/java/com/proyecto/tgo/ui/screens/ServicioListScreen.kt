@@ -1,5 +1,13 @@
 package com.proyecto.tgo.ui.screens
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,18 +22,26 @@ import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.proyecto.tgo.viewmodel.ServicioViewModel
 import com.proyecto.tgo.ui.components.ClimaCard
+import com.proyecto.tgo.ui.components.IniciarViajeDialog
+import com.proyecto.tgo.util.ViajeScheduler
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 data class ServicioItem(
     val id: String,
@@ -35,7 +51,8 @@ data class ServicioItem(
     val destino: String,
     val hora: String,
     val tarifa: String,
-    val estado: EstadoServicio
+    val estado: EstadoServicio,
+    val agendadoPara: LocalDateTime? = null
 )
 
 enum class EstadoServicio(val titulo: String) {
@@ -52,8 +69,24 @@ fun ServicioListScreen(
     var queryBusqueda by remember { mutableStateOf("") }
     var estadoFiltroSeleccionado by remember { mutableStateOf<EstadoServicio?>(null) }
 
+    val context = LocalContext.current
+    var servicioAIniciar by remember { mutableStateOf<ServicioItem?>(null) }
+
+    // Permiso de notificaciones (Android 13+) para avisar la hora agendada
+    val permisoNotificaciones = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { concedido ->
+        if (!concedido) {
+            Toast.makeText(
+                context,
+                "Sin permiso de notificaciones no recibirás el recordatorio del viaje",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
     val serviciosEjemplo = remember {
-        listOf(
+        mutableStateListOf(
             ServicioItem("TR-101", "María González", "+56 9 8765 4321", "Aeropuerto El Tepual", "Hotel Cabaña del Lago", "10:30 AM", "$25.000", EstadoServicio.PENDIENTE),
             ServicioItem("TR-102", "Carlos Silva", "+56 9 1122 3344", "Terminal de Buses", "Centro de Puerto Montt", "11:15 AM", "$12.000", EstadoServicio.EN_CURSO),
             ServicioItem("TR-103", "Empresa X", "+56 9 9988 7766", "Plaza de Armas", "Puerto Varas Centro", "08:00 AM", "$30.000", EstadoServicio.COMPLETADO)
@@ -135,15 +168,95 @@ fun ServicioListScreen(
                 contentPadding = PaddingValues(bottom = 20.dp)
             ) {
                 items(serviciosFiltrados, key = { it.id }) { servicio ->
-                    ServicioCard(servicio = servicio)
+                    ServicioCard(
+                        servicio = servicio,
+                        onLlamar = { marcarTelefono(context, servicio.telefono) },
+                        onIniciar = { servicioAIniciar = servicio },
+                        onNavegar = { abrirNavegacion(context, servicio.destino) },
+                        onQuitarAgenda = {
+                            ViajeScheduler.cancelar(context, servicio.id)
+                            val i = serviciosEjemplo.indexOfFirst { it.id == servicio.id }
+                            if (i >= 0) serviciosEjemplo[i] = serviciosEjemplo[i].copy(agendadoPara = null)
+                        }
+                    )
                 }
             }
         }
     }
+
+    // Diálogo: iniciar ahora o agendar horario
+    servicioAIniciar?.let { servicio ->
+        IniciarViajeDialog(
+            servicioId = servicio.id,
+            onCerrar = { servicioAIniciar = null },
+            onIniciarAhora = {
+                ViajeScheduler.cancelar(context, servicio.id)
+                val i = serviciosEjemplo.indexOfFirst { it.id == servicio.id }
+                if (i >= 0) {
+                    serviciosEjemplo[i] = serviciosEjemplo[i].copy(
+                        estado = EstadoServicio.EN_CURSO,
+                        agendadoPara = null
+                    )
+                }
+                servicioAIniciar = null
+            },
+            onAgendar = { momento ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED
+                ) {
+                    permisoNotificaciones.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+                val descripcion = "${servicio.pasajero} · ${servicio.origen} → ${servicio.destino}"
+                if (ViajeScheduler.agendar(context, servicio.id, descripcion, momento)) {
+                    val i = serviciosEjemplo.indexOfFirst { it.id == servicio.id }
+                    if (i >= 0) serviciosEjemplo[i] = serviciosEjemplo[i].copy(agendadoPara = momento)
+                    Toast.makeText(
+                        context,
+                        "Viaje agendado para ${momento.format(FORMATO_AGENDA)}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    Toast.makeText(context, "El horario ya pasó", Toast.LENGTH_SHORT).show()
+                }
+                servicioAIniciar = null
+            }
+        )
+    }
+}
+
+private val FORMATO_AGENDA: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
+
+// ---- Recursos nativos: teléfono y navegación ----
+
+/** Abre el marcador del teléfono con el número (no requiere permisos). */
+private fun marcarTelefono(context: android.content.Context, telefono: String) {
+    val numero = telefono.filter { it.isDigit() || it == '+' }
+    try {
+        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$numero")))
+    } catch (e: Exception) {
+        Toast.makeText(context, "No se pudo abrir el marcador", Toast.LENGTH_SHORT).show()
+    }
+}
+
+/** Abre la app de mapas del teléfono con la ruta hacia el destino. */
+private fun abrirNavegacion(context: android.content.Context, destino: String) {
+    val uri = Uri.parse("geo:0,0?q=${Uri.encode(destino)}")
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+    } catch (e: Exception) {
+        Toast.makeText(context, "No hay una app de mapas instalada", Toast.LENGTH_SHORT).show()
+    }
 }
 
 @Composable
-private fun ServicioCard(servicio: ServicioItem) {
+private fun ServicioCard(
+    servicio: ServicioItem,
+    onLlamar: () -> Unit,
+    onIniciar: () -> Unit,
+    onNavegar: () -> Unit,
+    onQuitarAgenda: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -182,6 +295,44 @@ private fun ServicioCard(servicio: ServicioItem) {
 
             // Ruta origen -> destino con mejor espaciado
             RutaVisual(origen = servicio.origen, destino = servicio.destino)
+
+            // Horario agendado para iniciar el viaje
+            servicio.agendadoPara?.let { momento ->
+                Surface(
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 12.dp, top = 2.dp, bottom = 2.dp, end = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        Text(
+                            text = "Agendado: ${momento.format(FORMATO_AGENDA)}",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 8.dp)
+                        )
+                        IconButton(onClick = onQuitarAgenda) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Quitar horario agendado",
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
+                }
+            }
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
@@ -224,7 +375,7 @@ private fun ServicioCard(servicio: ServicioItem) {
                 ) {
                     // Botón de llamada más amplio y cómodo
                     FilledTonalIconButton(
-                        onClick = { /* Lógica para llamar */ },
+                        onClick = onLlamar,
                         modifier = Modifier.size(44.dp),
                         shape = CircleShape
                     ) {
@@ -238,18 +389,21 @@ private fun ServicioCard(servicio: ServicioItem) {
                     when (servicio.estado) {
                         EstadoServicio.PENDIENTE -> {
                             Button(
-                                onClick = { /* Iniciar viaje */ },
+                                onClick = onIniciar,
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Iniciar", fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    if (servicio.agendadoPara == null) "Iniciar" else "Reagendar",
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
                         EstadoServicio.EN_CURSO -> {
                             Button(
-                                onClick = { /* Navegar / Finalizar */ },
+                                onClick = onNavegar,
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                                 shape = RoundedCornerShape(12.dp)

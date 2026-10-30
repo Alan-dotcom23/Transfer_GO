@@ -8,6 +8,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.util.TimeZone
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -16,9 +19,17 @@ import java.util.Locale
 @Composable
 fun SelectorFecha(
     onFechaSeleccionada: (Long?) -> Unit,
-    onCerrar: () -> Unit
+    onCerrar: () -> Unit,
+    soloDesdeHoy: Boolean = false
 ) {
-    val state = rememberDatePickerState()
+    // El DatePicker trabaja en milisegundos UTC a medianoche
+    val inicioHoyUtc = LocalDate.now().atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    val state = rememberDatePickerState(
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                !soloDesdeHoy || utcTimeMillis >= inicioHoyUtc
+        }
+    )
 
     DatePickerDialog(
         onDismissRequest = onCerrar,
@@ -86,6 +97,8 @@ fun SelectorHora(
 fun formatearFecha(millis: Long?): String {
     if (millis == null) return "Seleccionar fecha"
     val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    // El DatePicker entrega la fecha en UTC; sin esto se mostraba un día antes en Chile
+    formatter.timeZone = TimeZone.getTimeZone("UTC")
     return formatter.format(Date(millis))
 }
 
