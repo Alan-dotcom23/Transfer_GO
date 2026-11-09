@@ -108,7 +108,6 @@ fun ServicioListScreen(
             .fillMaxSize()
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        ClimaCard()
         // 1. Buscador rápido
         OutlinedTextField(
             value = queryBusqueda,

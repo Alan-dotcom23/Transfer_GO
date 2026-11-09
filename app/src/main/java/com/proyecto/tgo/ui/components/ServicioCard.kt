@@ -1,40 +1,52 @@
 package com.proyecto.tgo.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.SuggestionChipDefaults
-import androidx.compose.material3.Text
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.proyecto.tgo.model.EstadoServicio
 import com.proyecto.tgo.model.ServicioTuristico
+
+// Función auxiliar para deducir coordenadas según el texto del destino
+fun obtenerCoordenadasPorDestino(destino: String): Pair<Double, Double> {
+    return when {
+        destino.contains("Aeropuerto", ignoreCase = true) || destino.contains("Tepual", ignoreCase = true) -> Pair(-41.4388, -73.0940)
+        destino.contains("Puerto Varas", ignoreCase = true) -> Pair(-41.3195, -72.9854)
+        destino.contains("Frutillar", ignoreCase = true) -> Pair(-41.1354, -73.0270)
+        // Por defecto: Puerto Montt Centro
+        else -> Pair(-41.4693, -72.9424)
+    }
+}
 
 @Composable
 fun ServicioCard(
     servicio: ServicioTuristico,
-    onConfirmar: () -> Unit,
-    onRechazar: () -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Calculamos las coordenadas del destino del viaje
+    val destinoCoords = obtenerCoordenadasPorDestino(servicio.puntoDropoff)
+
     Card(
-        modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable { onClick() },
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // Cliente y Estado
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -42,60 +54,52 @@ fun ServicioCard(
             ) {
                 Text(
                     text = servicio.clienteNombre,
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
-                SuggestionChip(
-                    onClick = { },
-                    label = { Text(servicio.estado.etiqueta) },
-                    colors = SuggestionChipDefaults.suggestionChipColors(
-                        containerColor = servicio.estado.colorContenedor(),
-                        labelColor = servicio.estado.colorTexto()
+                Badge(containerColor = MaterialTheme.colorScheme.primaryContainer) {
+                    Text(
+                        text = servicio.estado.name,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
-                )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Fecha y Hora
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("${servicio.fecha} - ${servicio.horaPickup}", style = MaterialTheme.typography.bodyMedium)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text("📅 Fecha: ${servicio.fecha} · 🕒 ${servicio.horaPickup}")
-            Text("📍 Pickup: ${servicio.puntoPickup}")
-            Text("🏁 Dropoff: ${servicio.puntoDropoff}")
-            Text(
-                text = "💰 Tarifa: ${servicio.tarifaFormateada}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            servicio.observacion?.let { obs ->
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "📝 Obs: $obs",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            // Ruta (Pickup -> Dropoff)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("${servicio.puntoPickup} ➔ ${servicio.puntoDropoff}", style = MaterialTheme.typography.bodyMedium)
             }
 
-            if (servicio.estado == EstadoServicio.PENDIENTE) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onRechazar,
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Text("Rechazar")
-                    }
-                    Button(
-                        onClick = onConfirmar,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Confirmar")
-                    }
-                }
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            // Fila Final: Clima a la izquierda, Tarifa a la derecha
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Aquí llamamos al clima con las coordenadas del destino
+                ClimaCard(lat = destinoCoords.first, lon = destinoCoords.second)
+
+                Text(
+                    text = "Tarifa: ${servicio.tarifaFormateada}",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }

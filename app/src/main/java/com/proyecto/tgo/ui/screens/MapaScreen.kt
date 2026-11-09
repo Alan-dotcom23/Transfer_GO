@@ -1,8 +1,8 @@
 package com.proyecto.tgo.ui.screens
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
-import android.preference.PreferenceManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
@@ -12,8 +12,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -25,12 +28,13 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 @Composable
 fun MapaScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    // Configuración obligatoria para osmdroid
+    // 1. Configuración de osmdroid usando SharedPreferences moderno
     LaunchedEffect(Unit) {
         Configuration.getInstance().load(
             context,
-            PreferenceManager.getDefaultSharedPreferences(context)
+            context.getSharedPreferences("osmdroid_prefs", Context.MODE_PRIVATE)
         )
         Configuration.getInstance().userAgentValue = context.packageName
     }
@@ -62,30 +66,48 @@ fun MapaScreen(modifier: Modifier = Modifier) {
         }
     }
 
+    // Declaramos el MapView en un remember para poder inyectarle los eventos de ciclo de vida
+    val mapView = remember { MapView(context) }
+
+    // 2. Manejo estricto del ciclo de vida para evitar fugas de memoria o drenar batería
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> mapView.onResume()
+                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            mapView.onDetach() // Limpia los recursos de Osmdroid al destruir la vista
+        }
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
-            factory = { ctx ->
-                MapView(ctx).apply {
+            factory = {
+                mapView.apply {
                     setTileSource(TileSourceFactory.MAPNIK)
                     setMultiTouchControls(true)
 
-                    // Nivel de zoom y centro (Puerto Montt)
+                    // 3. Coordenadas reales: Aeropuerto El Tepual (Lat: -41.4388, Lon: -73.0940)
+                    val elTepual = GeoPoint(-41.4388, -73.0940)
                     controller.setZoom(14.0)
-                    val puertoMontt = GeoPoint(-41.4693, -72.9424)
-                    controller.setCenter(puertoMontt)
+                    controller.setCenter(elTepual)
 
-                    // Agregar un marcador de ejemplo
-                    val startMarker = Marker(this)
-                    startMarker.position = puertoMontt
-                    startMarker.title = "Aeropuerto El Tepual"
-                    startMarker.snippet = "Punto de recogida"
-                    startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    val startMarker = Marker(this).apply {
+                        position = elTepual
+                        title = "Aeropuerto El Tepual"
+                        snippet = "Punto de recogida"
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    }
                     overlays.add(startMarker)
 
-                    // Si hay permiso, mostrar el punto azul de ubicación
                     if (tienePermisoUbicacion) {
-                        val locationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(ctx), this)
+                        val locationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(context), this)
                         locationOverlay.enableMyLocation()
                         overlays.add(locationOverlay)
                     }
